@@ -4,6 +4,7 @@ from .models import (
     AlternativePart, PartNote, PurchasePrice, 
     SalePrice, StockMovement
 )
+from apps.workshops.models import Workshop
 
 
 class VehicleSerializer(serializers.ModelSerializer):
@@ -162,9 +163,48 @@ class PartCreateSerializer(serializers.ModelSerializer):
             'current_purchase_price', 'current_sale_price',
             'vehicle_ids'
         ]
+        extra_kwargs = {
+            'name': {'required': False, 'allow_blank': True},
+            'category': {'required': False, 'allow_null': True},
+            'brand': {'required': False, 'allow_blank': True},
+            'code': {'required': False, 'allow_blank': True},
+            'image': {'required': False, 'allow_null': True},
+            'quantity': {'required': False},
+            'min_stock': {'required': False},
+            'current_purchase_price': {'required': False, 'allow_null': True},
+            'current_sale_price': {'required': False, 'allow_null': True},
+        }
     
     def create(self, validated_data):
         vehicle_ids = validated_data.pop('vehicle_ids', [])
+        
+        # Eğer category sağlanmadıysa, default category'yi al veya oluştur
+        if 'category' not in validated_data or validated_data.get('category') is None:
+            default_category = PartCategory.objects.first()
+            if not default_category:
+                default_category = PartCategory.objects.create(name='Genel')
+            validated_data['category'] = default_category
+        
+        # Eğer name sağlanmadıysa, default name ver
+        if not validated_data.get('name'):
+            validated_data['name'] = "Belirtilmemiş Parça"
+
+        # Eğer workshop sağlanmadıysa, isteği yapan kullanıcının dükkanını kullan veya oluştur
+        if 'workshop' not in validated_data or validated_data.get('workshop') is None:
+            request = self.context.get('request') if hasattr(self, 'context') else None
+            user = getattr(request, 'user', None) if request is not None else None
+            if user and user.is_authenticated:
+                ws = Workshop.objects.filter(owner=user).first()
+                if not ws:
+                    ws = Workshop.objects.create(
+                        owner=user,
+                        name=f"{user.username} - Auto Workshop",
+                        address='-',
+                        phone='000',
+                        district='-'
+                    )
+                validated_data['workshop'] = ws
+        
         part = Part.objects.create(**validated_data)
         
         # Araç uyumluluklarını ekle

@@ -41,7 +41,7 @@ class PartCategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 class PartViewSet(viewsets.ModelViewSet):
     """Parça yönetimi"""
-    permission_classes = [IsAuthenticated, IsPremiumPro]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         if self.request.user.is_authenticated:
@@ -62,7 +62,17 @@ class PartViewSet(viewsets.ModelViewSet):
             # Kullanıcının ilk workshop'unu kullan
             workshop = self.request.user.workshops.first()
             if not workshop:
-                raise serializers.ValidationError("Önce bir dükkan oluşturmalısınız.")
+                # Otomatik olarak minimal bir workshop oluştur
+                from apps.workshops.models import Workshop
+                workshop = Workshop.objects.create(
+                    owner=self.request.user,
+                    name=f"{self.request.user.username} - Varsayılan Dükkan",
+                    category=None,
+                    description='Otomatik oluşturulan varsayılan dükkan',
+                    address='Adres belirtilmedi',
+                    phone='0000000000',
+                    district='Belirtilmedi'
+                )
         else:
             from apps.workshops.models import Workshop
             try:
@@ -71,6 +81,26 @@ class PartViewSet(viewsets.ModelViewSet):
                 raise serializers.ValidationError("Dükkan bulunamadı.")
         
         serializer.save(workshop=workshop)
+
+    def create(self, request, *args, **kwargs):
+        """Override create to return detailed validation errors and log them."""
+        serializer_class = self.get_serializer_class()
+        serializer = serializer_class(data=request.data)
+        if not serializer.is_valid():
+            # Log errors for easier debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f'Part create validation errors: {serializer.errors}')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                self.perform_create(serializer)
+        except serializers.ValidationError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=False, methods=['get'])
     def low_stock(self, request):

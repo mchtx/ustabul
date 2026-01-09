@@ -26,6 +26,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
                 'username': user.username,
                 'email': user.email,
                 'role': user.role,
+                'subscription_level': user.subscription_level,
                 'message': 'Başarıyla kaydedildi!'
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -64,6 +65,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
                 'email': user.email,
                 'role': user.role,
                 'is_premium': user.is_premium,
+                'subscription_level': user.subscription_level,
                 'message': 'Giriş başarılı!'
             }, status=status.HTTP_200_OK)
         except Exception as e:

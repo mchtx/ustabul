@@ -13,12 +13,14 @@ export function AuthProvider({ children }) {
     const username = localStorage.getItem('username');
     const role = localStorage.getItem('role');
     const email = localStorage.getItem('email');
+    const subscriptionLevel = localStorage.getItem('subscription_level');
     if (userId && username) {
       setUser({ 
         id: parseInt(userId), 
         username: username,
         role: role || 'customer',
-        email: email
+        email: email,
+        subscription_level: subscriptionLevel || 'free'
       });
     }
     
@@ -39,6 +41,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('username', response.data.username);
       localStorage.setItem('role', response.data.role);
       localStorage.setItem('email', response.data.email);
+      localStorage.setItem('subscription_level', response.data.subscription_level);
       
       return true;
     } catch (error) {
@@ -56,6 +59,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('username', response.data.username);
       localStorage.setItem('role', response.data.role);
       localStorage.setItem('email', response.data.email);
+      localStorage.setItem('subscription_level', response.data.subscription_level || 'free');
       return true;
     } catch (error) {
       console.error('Kayıt hatası:', error.response?.data || error.message);
@@ -69,6 +73,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('username');
     localStorage.removeItem('role');
     localStorage.removeItem('email');
+    localStorage.removeItem('subscription_level');
     localStorage.removeItem('access_token');
     setUser(null);
   };
